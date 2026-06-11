@@ -46,7 +46,7 @@
   community.docker.docker_container:
     name: database
     image: "{{ postgres_image }}"
-    pull: always
+    pull: true
     recreate: true
     restart_policy: unless-stopped
     networks:
@@ -75,7 +75,7 @@
   community.docker.docker_container:
     name: application
     image: "{{ docker_image_ref }}"
-    pull: always
+    pull: true
     recreate: true
     restart_policy: unless-stopped
     networks:
