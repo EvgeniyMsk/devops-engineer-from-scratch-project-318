@@ -1,0 +1,28 @@
+---
+- name: Deploy bulletin board application
+  hosts: main
+  become: true
+
+  handlers:
+    - ansible.builtin.import_tasks: handlers/main.yml
+
+  pre_tasks:
+    - ansible.builtin.import_tasks: tasks/docker-user.yml
+
+  roles:
+    - role: geerlingguy.docker
+      tags:
+        - prepare
+        - deploy
+    - role: geerlingguy.nginx
+      tags:
+        - prepare
+        - deploy
+        - nginx
+
+  tasks:
+    - ansible.builtin.import_tasks: tasks/firewall.yml
+    - ansible.builtin.import_tasks: tasks/packages.yml
+    - ansible.builtin.import_tasks: tasks/nginx.yml
+    - ansible.builtin.import_tasks: tasks/certbot.yml
+    - ansible.builtin.import_tasks: tasks/deploy.yml
