@@ -1,0 +1,24 @@
+---
+- name: Deploy bulletin board application
+  hosts: main
+  become: true
+
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/web_servers.yml"
+
+  roles:
+    - role: geerlingguy.docker
+      tags:
+        - prepare
+        - deploy
+    - role: geerlingguy.nginx
+      tags:
+        - prepare
+        - deploy
+        - nginx
+    - role: bulletins
+      tags:
+        - prepare
+        - deploy
+        - nginx
+        - certbot

@@ -1,0 +1,7 @@
+---
+- ansible.builtin.import_tasks: docker-user.yml
+- ansible.builtin.import_tasks: firewall.yml
+- ansible.builtin.import_tasks: packages.yml
+- ansible.builtin.import_tasks: nginx.yml
+- ansible.builtin.import_tasks: certbot.yml
+- ansible.builtin.import_tasks: deploy.yml
