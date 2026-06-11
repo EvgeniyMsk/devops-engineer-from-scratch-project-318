@@ -1,0 +1,90 @@
+---
+- name: Configure TLS certificates with Certbot
+  ansible.builtin.include_role:
+    name: geerlingguy.certbot
+    apply:
+      tags:
+        - prepare
+        - deploy
+        - certbot
+  tags:
+    - prepare
+    - deploy
+    - certbot
+
+- name: Ensure Certbot renewal hooks directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - prepare
+    - deploy
+    - certbot
+
+- name: Install Certbot deploy hook to reload Nginx after renewal
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      systemctl reload nginx
+  tags:
+    - prepare
+    - deploy
+    - certbot
+
+- name: Re-check TLS certificate after Certbot
+  ansible.builtin.stat:
+    path: "{{ certbot_cert_path }}/fullchain.pem"
+  register: ssl_certificate_file
+  tags:
+    - prepare
+    - deploy
+    - certbot
+    - nginx
+
+- name: Enable HTTPS in Nginx after certificate issuance
+  ansible.builtin.template:
+    src: templates/nginx-bulletins.conf.j2
+    dest: /etc/nginx/conf.d/bulletins.conf
+    mode: "0644"
+  vars:
+    nginx_ssl_enabled: "{{ ssl_certificate_file.stat.exists | default(false) }}"
+  notify: Reload nginx
+  when: ssl_certificate_file.stat.exists
+  tags:
+    - prepare
+    - deploy
+    - certbot
+    - nginx
+
+- name: Flush handlers after HTTPS configuration
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - prepare
+    - deploy
+    - certbot
+    - nginx
+
+- name: Validate nginx configuration after HTTPS update
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  tags:
+    - prepare
+    - deploy
+    - certbot
+    - nginx
+
+- name: Restart nginx after HTTPS update
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+    enabled: true
+  tags:
+    - prepare
+    - deploy
+    - certbot
+    - nginx
