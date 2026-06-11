@@ -14,7 +14,7 @@ Ansible-плейбуки для развёртывания [project-devops-deplo
 | Репозиторий | Содержимое |
 |-------------|------------|
 | [project-devops-deploy](https://github.com/EvgeniyMsk/project-devops-deploy) | Java + React, Docker-образ, GitHub Actions |
-| **devops-engineer-from-scratch-project-315** (этот) | `playbook.yml`, inventory, Nginx, Certbot, деплой |
+| **devops-engineer-from-scratch-project-318** (этот) | Ansible, Nginx, Certbot, Node Exporter, деплой |
 
 ## Архитектура
 
@@ -24,20 +24,26 @@ Internet
    ▼
 Nginx (:80 / :443)              task.devops-campus.ru
    │  static: /var/www/bulletins
-   │  proxy: 127.0.0.1:8080
+   │  proxy app:     127.0.0.1:8080
+   │  proxy actuator: 127.0.0.1:9090  (/actuator/health, /actuator/prometheus)
    ▼
 application (Docker)            Spring Boot, prod profile
    │  logs: /var/log/bulletins
+   │  management: :9090
    ▼
 database (postgres:14)          PostgreSQL
    │  data: /var/lib/postgresql/bulletins
    ▼
 Yandex Object Storage           изображения объявлений (S3)
+
+Prometheus (внешний)
+   ├── scrape :9100/metrics        Node Exporter (localhost)
+   └── scrape /actuator/prometheus Spring Boot через Nginx (HTTPS)
 ```
 
 | Компонент | Значение |
 |-----------|----------|
-| Сервер | `138.16.178.207` (`inventory/inventory.ini`) |
+| Сервер | `138.16.178.207` (`ansible/inventories/inventory.ini`) |
 | Домен | `task.devops-campus.ru` |
 | Docker-образ | `cr.yandex/crpd2isbgl7k3puo75s1/project-devops-deploy` |
 | Тег по умолчанию | `latest` |
@@ -45,19 +51,20 @@ Yandex Object Storage           изображения объявлений (S3)
 | S3 bucket | `hexlet-bucket` (`ru-central1`) |
 | Registry | `cr.yandex` (логин: `oauth`) |
 
-Образ собирается и публикуется CI в репозитории приложения. **Registry ID в Ansible должен совпадать с CI** (`inventory/group_vars/web_servers.yml` → `docker_image`).
+Образ собирается и публикуется CI в репозитории приложения. **Registry ID в Ansible должен совпадать с CI** (`ansible/group_vars/web_servers.yml` → `docker_image`).
 
 ## Структура
 
 | Файл / каталог | Назначение |
 |----------------|------------|
-| `playbook.yml` | Главный плейбук |
+| `ansible/playbooks/playbook.yml` | Главный плейбук |
 | `Makefile` | `make galaxy`, `make setup`, `make deploy` |
-| `inventory/inventory.ini` | Хост и SSH |
-| `inventory/group_vars/web_servers.yml` | Домен, образ, S3, Nginx |
-| `requirements.yml` | Роли: docker, nginx, certbot; коллекция `community.docker` |
-| `tasks/` | firewall, packages, nginx, certbot, deploy |
-| `templates/` | Конфигурация Nginx |
+| `requirements.yml` | Роли Galaxy: docker, nginx, certbot |
+| `ansible/inventories/inventory.ini` | Хост и SSH |
+| `ansible/group_vars/web_servers.yml` | Домен, образ, S3, Nginx, мониторинг |
+| `ansible/roles/bulletins/` | Деплой, Nginx, Certbot, firewall |
+| `ansible/roles/node_exporter/` | Node Exporter (системные метрики) |
+| `assets/monitoring/` | Документация обязательных метрик |
 
 ## Требования
 
@@ -70,7 +77,7 @@ Yandex Object Storage           изображения объявлений (S3)
 
 **Target server** (Ubuntu 22.04+):
 
-- Порты 80, 443 — публично; 8080, 9090 — только `127.0.0.1`
+- Порты 80, 443 — публично; 8080, 9090, 9100 — только `127.0.0.1` (Actuator и Node Exporter доступны снаружи через Nginx)
 - DNS A-запись `task.devops-campus.ru` → IP сервера
 - Каталоги: `/var/lib/postgresql/bulletins`, `/var/log/bulletins`, `/var/www/bulletins`, `/var/www/letsencrypt`
 
@@ -126,6 +133,66 @@ make deploy ANSIBLE_DOCKER_TAG=<git-sha>
 
 Тег образа: `docker_tag` в `web_servers.yml` (по умолчанию `latest`) или `ANSIBLE_DOCKER_TAG` при вызове `make deploy`.
 
+## Мониторинг
+
+### Источники метрик
+
+| Источник | Endpoint | Назначение |
+|----------|----------|------------|
+| Node Exporter | `http://127.0.0.1:9100/metrics` | CPU, память, диски, сеть, процессы, systemd |
+| Spring Boot Actuator | `https://task.devops-campus.ru/actuator/prometheus` | JVM, HTTP, пул соединений БД |
+| Healthcheck | `https://task.devops-campus.ru/actuator/health` | Состояние приложения |
+
+Nginx проксирует `/actuator/health` и `/actuator/prometheus` на management-порт приложения (`9090`). Запросы к этим путям логируются в JSON:
+
+- access: `/var/log/nginx/monitoring-access.json` — JSON (`monitoring_json`)
+- error: `/var/log/nginx/monitoring-error.json` — nginx error log (уровень `warn`; ошибки upstream также видны в JSON access-логе по полю `status`)
+
+Подробнее: [`assets/monitoring/required-metrics.md`](assets/monitoring/required-metrics.md).
+
+### Обязательные метрики для Prometheus
+
+| Категория | Метрика | Источник | Описание |
+|-----------|---------|----------|----------|
+| **CPU load** | `node_load1` | Node Exporter | Средняя нагрузка за 1 минуту |
+| **CPU load** | `node_load5` | Node Exporter | Средняя нагрузка за 5 минут |
+| **CPU load** | `node_load15` | Node Exporter | Средняя нагрузка за 15 минут |
+| **CPU load** | `node_cpu_seconds_total` | Node Exporter | Время CPU по режимам (idle, user, system, iowait) |
+| **Память** | `node_memory_MemAvailable_bytes` | Node Exporter | Доступная оперативная память |
+| **Память** | `node_memory_MemTotal_bytes` | Node Exporter | Общий объём RAM |
+| **Память** | `node_memory_SwapFree_bytes` | Node Exporter | Свободный swap |
+| **Диски** | `node_filesystem_avail_bytes` | Node Exporter | Свободное место на файловых системах |
+| **Диски** | `node_filesystem_size_bytes` | Node Exporter | Размер файловых систем |
+| **Диски** | `node_disk_read_bytes_total` | Node Exporter | Прочитано с диска |
+| **Диски** | `node_disk_written_bytes_total` | Node Exporter | Записано на диск |
+| **Сеть** | `node_network_receive_bytes_total` | Node Exporter | Входящий трафик по интерфейсам |
+| **Сеть** | `node_network_transmit_bytes_total` | Node Exporter | Исходящий трафик по интерфейсам |
+| **Сеть** | `node_netstat_Tcp_CurrEstab` | Node Exporter | Активные TCP-соединения |
+| **Процессы** | `node_procs_running` | Node Exporter | Число запущенных процессов |
+| **Процессы** | `node_procs_blocked` | Node Exporter | Заблокированные процессы |
+| **Системные сервисы** | `node_systemd_unit_state` | Node Exporter | Состояние unit'ов (`nginx`, `docker`, `node_exporter`, …) |
+| **Приложение** | `process_uptime_seconds` | Actuator | Uptime JVM |
+| **Приложение** | `jvm_memory_used_bytes` | Actuator | Использование памяти JVM |
+| **Приложение** | `jvm_gc_pause_seconds_count` | Actuator | Количество пауз GC |
+| **Приложение** | `http_server_requests_seconds_count` | Actuator | Число HTTP-запросов |
+| **Приложение** | `http_server_requests_seconds_sum` | Actuator | Суммарное время обработки запросов |
+| **Приложение** | `http_server_requests_seconds_max` | Actuator | Максимальная латентность запроса |
+
+### Пример scrape_config
+
+```yaml
+scrape_configs:
+  - job_name: node
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
+
+  - job_name: bulletins-app
+    metrics_path: /actuator/prometheus
+    scheme: https
+    static_configs:
+      - targets: ["task.devops-campus.ru"]
+```
+
 ## Проверка production
 
 ```bash
@@ -136,6 +203,14 @@ docker logs database --tail 10
 curl -s http://127.0.0.1:8080/api/bulletins
 curl -I https://task.devops-campus.ru
 certbot certificates
+
+# Мониторинг
+curl -s http://127.0.0.1:9100/metrics | grep -E '^node_load1|^node_memory_MemAvailable'
+curl -s http://127.0.0.1:9090/actuator/prometheus | grep -E '^process_uptime_seconds|^http_server_requests'
+curl -s https://task.devops-campus.ru/actuator/health
+curl -s https://task.devops-campus.ru/actuator/prometheus | head
+tail -f /var/log/nginx/monitoring-access.json
+systemctl status node_exporter
 ```
 
 ## Типичные проблемы

@@ -4,6 +4,11 @@ upstream bulletin_app {
     keepalive 32;
 }
 
+upstream bulletin_management {
+    server 127.0.0.1:{{ app_management_port }};
+    keepalive 8;
+}
+
 # HTTP: ACME challenge + redirect to HTTPS when certificate is available
 server {
     listen 80;

@@ -16,6 +16,11 @@
         - prepare
         - deploy
         - nginx
+    - role: node_exporter
+      tags:
+        - prepare
+        - monitoring
+        - node_exporter
     - role: bulletins
       tags:
         - prepare

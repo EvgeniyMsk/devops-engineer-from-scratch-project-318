@@ -1,6 +1,8 @@
 # Shared locations — included from HTTP/HTTPS server blocks
 client_max_body_size {{ nginx_client_max_body_size }};
 
+include /etc/nginx/snippets/monitoring-locations.conf;
+
 location /assets/ {
     root {{ nginx_static_root }};
     try_files $uri @app;

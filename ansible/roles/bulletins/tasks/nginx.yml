@@ -62,6 +62,32 @@
     - nginx
     - certbot
 
+- name: Deploy Nginx JSON log format snippet
+  ansible.builtin.template:
+    src: nginx-log-formats.conf.j2
+    dest: /etc/nginx/snippets/log-formats.conf
+    mode: "0644"
+  notify: Reload nginx
+  tags:
+    - prepare
+    - deploy
+    - nginx
+    - certbot
+    - monitoring
+
+- name: Deploy Nginx monitoring location snippets
+  ansible.builtin.template:
+    src: nginx-monitoring-locations.conf.j2
+    dest: /etc/nginx/snippets/monitoring-locations.conf
+    mode: "0644"
+  notify: Reload nginx
+  tags:
+    - prepare
+    - deploy
+    - nginx
+    - certbot
+    - monitoring
+
 - name: Deploy Nginx shared location snippets
   ansible.builtin.template:
     src: nginx-bulletins-locations.conf.j2

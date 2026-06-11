@@ -1,0 +1,19 @@
+node_exporter_version: "1.11.1"
+node_exporter_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+node_exporter_download_url: >-
+  https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz
+node_exporter_install_dir: /usr/local/bin
+node_exporter_listen_address: "127.0.0.1:9100"
+node_exporter_textfile_dir: /var/lib/node_exporter/textfile_collector
+
+# Обязательные категории метрик (см. assets/monitoring/required-metrics.md):
+# CPU load  — loadavg, cpu collectors (включены по умолчанию)
+# Память    — meminfo collector
+# Диски     — filesystem, diskstats collectors
+# Сеть      — netdev, netstat collectors
+# Процессы  — processes collector
+# Сервисы   — systemd collector (включается через node_exporter_extra_args)
+node_exporter_systemd_units: "nginx.service|docker.service|node_exporter.service|ssh.service|ufw.service|cron.service|rsyslog.service"
+node_exporter_extra_args: >-
+  --collector.systemd
+  --collector.systemd.unit-include={{ node_exporter_systemd_units }}

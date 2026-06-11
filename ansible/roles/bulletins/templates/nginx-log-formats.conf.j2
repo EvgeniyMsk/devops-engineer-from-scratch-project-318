@@ -1,0 +1,18 @@
+# Managed by Ansible — JSON log formats for monitoring endpoints
+log_format monitoring_json escape=json '{'
+  '"time":"$time_iso8601",'
+  '"remote_addr":"$remote_addr",'
+  '"request_method":"$request_method",'
+  '"request_uri":"$request_uri",'
+  '"status":$status,'
+  '"body_bytes_sent":$body_bytes_sent,'
+  '"request_time":$request_time,'
+  '"upstream_response_time":"$upstream_response_time",'
+  '"upstream_addr":"$upstream_addr",'
+  '"http_referer":"$http_referer",'
+  '"http_user_agent":"$http_user_agent",'
+  '"host":"$host",'
+  '"scheme":"$scheme",'
+  '"server_name":"$server_name",'
+  '"log_type":"access"'
+'}';
