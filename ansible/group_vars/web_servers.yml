@@ -3,7 +3,7 @@ postgres_image: postgres:14
 postgres_data_dir: /var/lib/postgresql/bulletins
 postgres_data_uid: 999
 postgres_data_gid: 999
-docker_image: cr.yandex/crpragsrepkuej79fefp/project-devops-deploy
+docker_image: cr.yandex/crpd2isbgl7k3puo75s1/project-devops-deploy
 docker_tag: latest
 docker_image_ref: "{{ docker_image }}:{{ docker_tag }}"
 app_log_dir: /var/log/bulletins
