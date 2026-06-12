@@ -38,4 +38,7 @@ deploy: galaxy
 		-e docker_tag=$(ANSIBLE_DOCKER_TAG) \
 		$(ANSIBLE_SECRET_VARS)
 
-.PHONY: galaxy setup deploy
+metrics: galaxy
+	cd $(ANSIBLE_DIR) && ansible-playbook playbooks/playbook-metrics.yml --tags=prepare_prometheus
+
+.PHONY: galaxy setup deploy metrics

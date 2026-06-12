@@ -1,3 +1,6 @@
+# Monitoring VM — Prometheus, firewall, scrape targets
+prometheus_public_url: "http://{{ hostvars[groups['monitoring'][0]]['ansible_host'] }}:9090"
+
 prometheus_config_dir: /opt/prometheus/config
 prometheus_rules_dir: "{{ prometheus_config_dir }}/rules"
 prometheus_data_dir: /var/lib/prometheus
@@ -7,7 +10,11 @@ prometheus_listen_address: "0.0.0.0"
 prometheus_listen_port: 9090
 prometheus_container_uid: 65534
 prometheus_container_gid: 65534
+
+# Единая точка сбора метрик на web-сервере (Nginx HTTPS :9090)
 prometheus_scrape_host: "{{ certbot_domain | default('task.devops-campus.ru') }}:9090"
+
+# Таргеты задаются в vars — новые сервисы добавляются строкой в список
 prometheus_scrape_jobs:
   - job_name: node
     metrics_path: /metrics
@@ -19,6 +26,7 @@ prometheus_scrape_jobs:
     scheme: https
     targets:
       - "{{ prometheus_scrape_host }}"
+
 prometheus_firewall_allowed_tcp_ports:
   - "22"
   - "{{ prometheus_listen_port }}"

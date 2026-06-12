@@ -1,0 +1,22 @@
+{% raw %}
+groups:
+  - name: availability
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.instance }} is down"
+          description: "Prometheus job {{ $labels.job }} target {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      - alert: HighCpuLoad
+        expr: node_load1 > 4
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU load on {{ $labels.instance }}"
+          description: "1-minute load average is above 4 for 5 minutes."
+{% endraw %}

@@ -1,0 +1,36 @@
+---
+- name: Install UFW firewall
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  when: ansible_os_family == "Debian"
+  tags:
+    - prepare_prometheus
+    - monitoring_firewall
+
+- name: Configure UFW default deny incoming
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+    state: enabled
+  tags:
+    - prepare_prometheus
+    - monitoring_firewall
+
+- name: Allow SSH and monitoring services
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ prometheus_firewall_allowed_tcp_ports }}"
+  tags:
+    - prepare_prometheus
+    - monitoring_firewall
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  when: ansible_os_family == "Debian"
+  tags:
+    - prepare_prometheus
+    - monitoring_firewall

@@ -1,5 +1,20 @@
 ---
-- name: Ensure prometheus data directory exists
+- ansible.builtin.import_tasks: firewall.yml
+
+- name: Ensure Prometheus config directory exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ prometheus_config_dir }}"
+    - "{{ prometheus_rules_dir }}"
+  tags:
+    - prepare_prometheus
+
+- name: Ensure Prometheus data directory exists
   ansible.builtin.file:
     path: "{{ prometheus_data_dir }}"
     state: directory
@@ -10,10 +25,26 @@
   tags:
     - prepare_prometheus
 
+- name: Create Docker network for monitoring stack
+  community.docker.docker_network:
+    name: "{{ prometheus_docker_network }}"
+    state: present
+  tags:
+    - prepare_prometheus
+
 - name: Deploy Prometheus configuration
   ansible.builtin.template:
     src: prometheus.yml.j2
-    dest: "{{ prometheus_config_path }}"
+    dest: "{{ prometheus_config_dir }}/prometheus.yml"
+    mode: "0644"
+  notify: Restart prometheus
+  tags:
+    - prepare_prometheus
+
+- name: Deploy Prometheus alert rules
+  ansible.builtin.template:
+    src: alerts.yml.j2
+    dest: "{{ prometheus_rules_dir }}/alerts.yml"
     mode: "0644"
   notify: Restart prometheus
   tags:
@@ -27,13 +58,16 @@
     recreate: true
     restart_policy: unless-stopped
     user: "{{ prometheus_container_uid }}:{{ prometheus_container_gid }}"
+    networks:
+      - name: "{{ prometheus_docker_network }}"
     volumes:
-      - "{{ prometheus_config_path }}:/etc/prometheus/prometheus.yml:ro"
+      - "{{ prometheus_config_dir }}:/etc/prometheus:ro"
       - "{{ prometheus_data_dir }}:/prometheus"
     ports:
-      - "{{ prometheus_listen_address }}:9090"
+      - "{{ prometheus_listen_address }}:{{ prometheus_listen_port }}:9090"
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
   tags:
     - prepare_prometheus
