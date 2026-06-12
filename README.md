@@ -106,7 +106,8 @@ Promtail (138.16.178.207, systemd) → Loki (138.16.187.61:3100, Docker, UFW: т
 │       ├── loki/
 │       └── grafana/
 ├── assets/
-│   └── monitoring/            # скриншоты дашбордов, required-metrics.md
+│   ├── README.md              # скриншоты дашбордов с пояснениями
+│   └── monitoring/            # PNG, required-metrics.md
 ├── scripts/
 │   └── smoke.sh
 ├── Makefile
@@ -132,7 +133,8 @@ Promtail (138.16.178.207, systemd) → Loki (138.16.187.61:3100, Docker, UFW: т
 | `ansible/roles/loki/` | Loki в Docker на monitoring-сервере |
 | `ansible/roles/prometheus/` | Prometheus в Docker |
 | `ansible/roles/grafana/` | Grafana в Docker, provisioning, dashboards |
-| `assets/monitoring/` | Скриншоты дашбордов, документация метрик |
+| `assets/` | Скриншоты дашбордов и пояснения — [`assets/README.md`](assets/README.md) |
+| `assets/monitoring/` | PNG-скриншоты, [`required-metrics.md`](assets/monitoring/required-metrics.md) |
 
 ### Inventory
 
@@ -640,13 +642,16 @@ Provisioned dashboards (папка **Bulletins**):
 
 Скриншоты ключевых панелей:
 
-| Dashboard | Файл |
-|-----------|------|
+Скриншоты ключевых панелей с пояснениями: **[`assets/README.md`](assets/README.md)**.
+
+| Dashboard | Скриншот |
+|-----------|----------|
+| Status Page | [`assets/monitoring/status_page.png`](assets/monitoring/status_page.png) |
 | System Resources | [`assets/monitoring/system_resourses.png`](assets/monitoring/system_resourses.png) |
 | Application Health | [`assets/monitoring/application_health.png`](assets/monitoring/application_health.png) |
 | HTTP Status Codes | [`assets/monitoring/status_codes.png`](assets/monitoring/status_codes.png) |
-| Nginx Metrics | [дашборд](http://138.16.187.61:3000/d/nginx-metrics) |
-| Logs Overview | [дашборд](http://138.16.187.61:3000/d/logs-overview) |
+| Nginx Metrics | [`assets/monitoring/nginx_metrics.png`](assets/monitoring/nginx_metrics.png) |
+| Logs Overview | [`assets/monitoring/logs_overview.png`](assets/monitoring/logs_overview.png) |
 | Alert (Telegram) | [`assets/monitoring/alert_telegram.png`](assets/monitoring/alert_telegram.png) *(после теста алерта)* |
 
 Подробнее по метрикам: [`assets/monitoring/required-metrics.md`](assets/monitoring/required-metrics.md).
