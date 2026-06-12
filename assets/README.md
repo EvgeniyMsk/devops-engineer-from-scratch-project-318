@@ -125,12 +125,6 @@ E2E-проверка: запись `promtail-e2e-test` в `/var/log/bulletins/e2
 
 Contact point: **`telegram-alerts`** · [Alert rules](http://138.16.187.61:3000/alerting/list)
 
-После теста алерта (Contact points → **Test** или правило «Grafana test alert») сохраните скриншот:
-
-![Alert Telegram — пример уведомления](monitoring/alert_telegram.png)
-
-> Файл `alert_telegram.png` добавляется после ручной проверки доставки в Telegram.
-
 Критичные правила (папка **Bulletins**, группа `bulletins-alerts`):
 
 | Правило | Условие |
