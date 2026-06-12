@@ -5,7 +5,7 @@
 
 **Production:** [https://task.devops-campus.ru](https://task.devops-campus.ru)
 
-Ansible-плейбуки для развёртывания [project-devops-deploy](https://github.com/EvgeniyMsk/project-devops-deploy) на сервере Yandex Cloud.
+Ansible-плейбуки для развёртывания [project-devops-deploy](https://github.com/EvgeniyMsk/project-devops-deploy) на серверах Yandex Cloud.
 
 В этом репозитории — **только инфраструктура и деплой**. Код приложения, `Dockerfile` и CI — в [форке приложения](https://github.com/EvgeniyMsk/project-devops-deploy).
 
@@ -14,7 +14,7 @@ Ansible-плейбуки для развёртывания [project-devops-deplo
 | Репозиторий | Содержимое |
 |-------------|------------|
 | [project-devops-deploy](https://github.com/EvgeniyMsk/project-devops-deploy) | Java + React, Docker-образ, GitHub Actions |
-| **devops-engineer-from-scratch-project-318** (этот) | Ansible, Nginx, Certbot, Node Exporter, деплой |
+| **devops-engineer-from-scratch-project-318** (этот) | Ansible, Nginx, Certbot, Node Exporter, Prometheus, деплой |
 
 ## Архитектура
 
@@ -22,28 +22,35 @@ Ansible-плейбуки для развёртывания [project-devops-deplo
 Internet
    │
    ▼
-Nginx (:80 / :443)              task.devops-campus.ru
+Nginx (:80 / :443)                         task.devops-campus.ru
    │  static: /var/www/bulletins
-   │  proxy app:     127.0.0.1:8080
-   │  proxy actuator: 127.0.0.1:9090  (/actuator/health, /actuator/prometheus)
+   │  proxy app: 127.0.0.1:8080
    ▼
-application (Docker)            Spring Boot, prod profile
+application (Docker)                       Spring Boot, prod profile
+   │  HTTP:        127.0.0.1:8080
+   │  management:  127.0.0.1:9091 → container :9090
    │  logs: /var/log/bulletins
-   │  management: :9090
    ▼
-database (postgres:14)          PostgreSQL
+database (postgres:14)                     PostgreSQL
    │  data: /var/lib/postgresql/bulletins
    ▼
-Yandex Object Storage           изображения объявлений (S3)
+Yandex Object Storage                      изображения объявлений (S3)
 
-Prometheus (внешний)
-   ├── scrape :9100/metrics        Node Exporter (localhost)
-   └── scrape /actuator/prometheus Spring Boot через Nginx (HTTPS)
+Nginx (:9090 HTTPS)                        мониторинг (отдельный server block)
+   ├── /metrics                 → Node Exporter 127.0.0.1:9100
+   ├── /actuator/prometheus     → Spring Boot 127.0.0.1:9091
+   └── /actuator/health         → Spring Boot 127.0.0.1:9091
+
+Prometheus (138.16.187.61, Docker)
+   └── scrape https://task.devops-campus.ru:9090
+         ├── /metrics
+         └── /actuator/prometheus
 ```
 
 | Компонент | Значение |
 |-----------|----------|
-| Сервер | `138.16.178.207` (`ansible/inventories/inventory.ini`) |
+| Web-сервер | `138.16.178.207` — приложение, Nginx, Node Exporter |
+| Monitoring-сервер | `138.16.187.61` — Prometheus |
 | Домен | `task.devops-campus.ru` |
 | Docker-образ | `cr.yandex/crpd2isbgl7k3puo75s1/project-devops-deploy` |
 | Тег по умолчанию | `latest` |
@@ -53,18 +60,44 @@ Prometheus (внешний)
 
 Образ собирается и публикуется CI в репозитории приложения. **Registry ID в Ansible должен совпадать с CI** (`ansible/group_vars/web_servers.yml` → `docker_image`).
 
+### Порты web-сервера
+
+| Порт | Доступ | Назначение |
+|------|--------|------------|
+| 80, 443 | публично | HTTP/HTTPS приложение |
+| 9090 | monitoring + VPN (UFW) | HTTPS метрики и Actuator через Nginx |
+| 8080 | `127.0.0.1` | Spring Boot HTTP |
+| 9091 | `127.0.0.1` | Spring Boot management (upstream для Nginx) |
+| 9100 | `127.0.0.1` | Node Exporter |
+
+> Nginx слушает `:9090`, приложение — `:9091`. Оба порта не могут быть заняты одним процессом на `127.0.0.1:9090`.
+
 ## Структура
 
 | Файл / каталог | Назначение |
 |----------------|------------|
-| `ansible/playbooks/playbook.yml` | Главный плейбук |
+| `ansible/playbooks/playbook.yml` | Деплой приложения (web-сервер) |
+| `ansible/playbooks/playbook-metrics.yml` | Prometheus (monitoring-сервер) |
 | `Makefile` | `make galaxy`, `make setup`, `make deploy` |
 | `requirements.yml` | Роли Galaxy: docker, nginx, certbot |
-| `ansible/inventories/inventory.ini` | Хост и SSH |
+| `ansible/inventories/inventory.ini` | Web и monitoring хосты |
 | `ansible/group_vars/web_servers.yml` | Домен, образ, S3, Nginx, мониторинг |
-| `ansible/roles/bulletins/` | Деплой, Nginx, Certbot, firewall |
+| `ansible/roles/bulletins/` | Деплой, Nginx, Certbot, UFW |
 | `ansible/roles/node_exporter/` | Node Exporter (системные метрики) |
+| `ansible/roles/prometheus/` | Prometheus в Docker |
 | `assets/monitoring/` | Документация обязательных метрик |
+
+### Inventory
+
+Имена хостов в группах **должны быть уникальными** — иначе Ansible объединит их в один хост и возьмёт последний `ansible_host`:
+
+```ini
+[web_servers]
+web ansible_host=138.16.178.207 ansible_user=root
+
+[monitoring]
+metrics ansible_host=138.16.187.61 ansible_user=root
+```
 
 ## Требования
 
@@ -72,14 +105,18 @@ Prometheus (внешний)
 
 - Python 3.12+, Ansible
 - `make galaxy` — установка ролей и коллекций из `requirements.yml`
-- SSH-доступ к серверу
+- SSH-доступ к серверам
 - Переменные окружения с секретами (см. ниже)
 
-**Target server** (Ubuntu 22.04+):
+**Web-сервер** (Ubuntu 22.04+):
 
-- Порты 80, 443 — публично; 8080, 9090, 9100 — только `127.0.0.1` (Actuator и Node Exporter доступны снаружи через Nginx)
-- DNS A-запись `task.devops-campus.ru` → IP сервера
+- DNS A-запись `task.devops-campus.ru` → `138.16.178.207`
 - Каталоги: `/var/lib/postgresql/bulletins`, `/var/log/bulletins`, `/var/www/bulletins`, `/var/www/letsencrypt`
+
+**Monitoring-сервер** (Ubuntu 22.04+):
+
+- Docker для контейнера Prometheus
+- Доступ к web-серверу по `:9090` (HTTPS)
 
 ## Секреты
 
@@ -109,7 +146,7 @@ export STORAGE_S3_ACCESSKEY=...
 export STORAGE_S3_SECRETKEY=...
 export DOCKER_OAUTH_TOKEN=...
 
-# Первичная настройка сервера (Docker, UFW, Nginx, Certbot, БД, приложение)
+# Первичная настройка web-сервера (Docker, UFW, Nginx, Certbot, БД, приложение)
 make setup
 
 # Обновление приложения
@@ -117,19 +154,22 @@ make deploy
 
 # Откат на конкретный коммит (git SHA из CI)
 make deploy ANSIBLE_DOCKER_TAG=<git-sha>
+
+# Развёртывание Prometheus на monitoring-сервере
+cd ansible && ansible-playbook playbooks/playbook-metrics.yml --tags=prepare_prometheus
 ```
 
-`make deploy` запускает теги `deploy,certbot,nginx`.
+`make deploy` запускает теги `deploy,certbot,nginx`. Порядок задач в роли `bulletins`: **deploy → nginx → certbot** (сначала контейнеры, затем Nginx).
 
 ## Процесс деплоя
 
 При `make deploy` Ansible:
 
 1. Логинится в Yandex Container Registry (`docker_oauth_token`).
-2. Скачивает образы PostgreSQL и приложения (`community.docker.docker_image`).
-3. Пересоздаёт контейнеры `database` и `application`.
-4. Извлекает frontend static из JAR в `/var/www/bulletins`.
-5. Обновляет Nginx и Certbot.
+2. Пересоздаёт контейнеры `database` и `application` (management на `127.0.0.1:9091`).
+3. Запускает Nginx с HTTPS на `:9090` для мониторинга.
+4. Обновляет Certbot и конфигурацию Nginx.
+5. Извлекает frontend static из JAR в `/var/www/bulletins`.
 
 Тег образа: `docker_tag` в `web_servers.yml` (по умолчанию `latest`) или `ANSIBLE_DOCKER_TAG` при вызове `make deploy`.
 
@@ -137,80 +177,77 @@ make deploy ANSIBLE_DOCKER_TAG=<git-sha>
 
 ### Источники метрик
 
-| Источник | Endpoint | Назначение |
-|----------|----------|------------|
-| Node Exporter | `http://127.0.0.1:9100/metrics` | CPU, память, диски, сеть, процессы, systemd |
-| Spring Boot Actuator | `https://task.devops-campus.ru/actuator/prometheus` | JVM, HTTP, пул соединений БД |
-| Healthcheck | `https://task.devops-campus.ru/actuator/health` | Состояние приложения |
+Все метрики снаружи доступны **только через HTTPS :9090**:
 
-Nginx проксирует `/actuator/health` и `/actuator/prometheus` на management-порт приложения (`9090`). Запросы к этим путям логируются в JSON:
+| Endpoint | Источник | Метрики |
+|----------|----------|---------|
+| `https://task.devops-campus.ru:9090/metrics` | Node Exporter | CPU, память, диски, сеть, процессы, systemd |
+| `https://task.devops-campus.ru:9090/actuator/prometheus` | Spring Boot Actuator | JVM, HTTP, пул соединений БД |
+| `https://task.devops-campus.ru:9090/actuator/health` | Spring Boot Actuator | Healthcheck |
+
+Node Exporter слушает `127.0.0.1:9100` — напрямую снаружи недоступен. Nginx проксирует `/metrics` на него.
+
+Запросы к monitoring endpoints логируются в JSON:
 
 - access: `/var/log/nginx/monitoring-access.json` — JSON (`monitoring_json`)
-- error: `/var/log/nginx/monitoring-error.json` — nginx error log (уровень `warn`; ошибки upstream также видны в JSON access-логе по полю `status`)
+- error: `/var/log/nginx/monitoring-error.json` — nginx error log (уровень `warn`)
 
 Подробнее: [`assets/monitoring/required-metrics.md`](assets/monitoring/required-metrics.md).
 
-### Обязательные метрики для Prometheus
+### Prometheus
 
-| Категория | Метрика | Источник | Описание |
-|-----------|---------|----------|----------|
-| **CPU load** | `node_load1` | Node Exporter | Средняя нагрузка за 1 минуту |
-| **CPU load** | `node_load5` | Node Exporter | Средняя нагрузка за 5 минут |
-| **CPU load** | `node_load15` | Node Exporter | Средняя нагрузка за 15 минут |
-| **CPU load** | `node_cpu_seconds_total` | Node Exporter | Время CPU по режимам (idle, user, system, iowait) |
-| **Память** | `node_memory_MemAvailable_bytes` | Node Exporter | Доступная оперативная память |
-| **Память** | `node_memory_MemTotal_bytes` | Node Exporter | Общий объём RAM |
-| **Память** | `node_memory_SwapFree_bytes` | Node Exporter | Свободный swap |
-| **Диски** | `node_filesystem_avail_bytes` | Node Exporter | Свободное место на файловых системах |
-| **Диски** | `node_filesystem_size_bytes` | Node Exporter | Размер файловых систем |
-| **Диски** | `node_disk_read_bytes_total` | Node Exporter | Прочитано с диска |
-| **Диски** | `node_disk_written_bytes_total` | Node Exporter | Записано на диск |
-| **Сеть** | `node_network_receive_bytes_total` | Node Exporter | Входящий трафик по интерфейсам |
-| **Сеть** | `node_network_transmit_bytes_total` | Node Exporter | Исходящий трафик по интерфейсам |
-| **Сеть** | `node_netstat_Tcp_CurrEstab` | Node Exporter | Активные TCP-соединения |
-| **Процессы** | `node_procs_running` | Node Exporter | Число запущенных процессов |
-| **Процессы** | `node_procs_blocked` | Node Exporter | Заблокированные процессы |
-| **Системные сервисы** | `node_systemd_unit_state` | Node Exporter | Состояние unit'ов (`nginx`, `docker`, `node_exporter`, …) |
-| **Приложение** | `process_uptime_seconds` | Actuator | Uptime JVM |
-| **Приложение** | `jvm_memory_used_bytes` | Actuator | Использование памяти JVM |
-| **Приложение** | `jvm_gc_pause_seconds_count` | Actuator | Количество пауз GC |
-| **Приложение** | `http_server_requests_seconds_count` | Actuator | Число HTTP-запросов |
-| **Приложение** | `http_server_requests_seconds_sum` | Actuator | Суммарное время обработки запросов |
-| **Приложение** | `http_server_requests_seconds_max` | Actuator | Максимальная латентность запроса |
-
-### Пример scrape_config
+Конфигурация генерируется ролью `prometheus` (`ansible/roles/prometheus/templates/prometheus.yml.j2`):
 
 ```yaml
 scrape_configs:
   - job_name: node
+    metrics_path: /metrics
+    scheme: https
     static_configs:
-      - targets: ["127.0.0.1:9100"]
+      - targets: ["task.devops-campus.ru:9090"]
 
   - job_name: bulletins-app
     metrics_path: /actuator/prometheus
     scheme: https
     static_configs:
-      - targets: ["task.devops-campus.ru"]
+      - targets: ["task.devops-campus.ru:9090"]
 ```
+
+UI Prometheus на monitoring-сервере: `http://127.0.0.1:9090` (только localhost).
+
+### Обязательные метрики
+
+| Категория | Примеры метрик | Источник |
+|-----------|----------------|----------|
+| CPU load | `node_load1`, `node_cpu_seconds_total` | Node Exporter |
+| Память | `node_memory_MemAvailable_bytes`, `node_memory_MemTotal_bytes` | Node Exporter |
+| Диски | `node_filesystem_avail_bytes`, `node_disk_read_bytes_total` | Node Exporter |
+| Сеть | `node_network_receive_bytes_total`, `node_netstat_Tcp_CurrEstab` | Node Exporter |
+| Процессы | `node_procs_running`, `node_procs_blocked` | Node Exporter |
+| Сервисы | `node_systemd_unit_state` | Node Exporter |
+| Приложение | `process_uptime_seconds`, `jvm_memory_used_bytes` | Actuator |
+| HTTP | `http_server_requests_seconds_count` | Actuator |
 
 ## Проверка production
 
 ```bash
-# На сервере
+# Web-сервер
 docker ps
 docker logs application --tail 30
-docker logs database --tail 10
 curl -s http://127.0.0.1:8080/api/bulletins
 curl -I https://task.devops-campus.ru
 certbot certificates
 
-# Мониторинг
-curl -s http://127.0.0.1:9100/metrics | grep -E '^node_load1|^node_memory_MemAvailable'
-curl -s http://127.0.0.1:9090/actuator/prometheus | grep -E '^process_uptime_seconds|^http_server_requests'
-curl -s https://task.devops-campus.ru/actuator/health
-curl -s https://task.devops-campus.ru/actuator/prometheus | head
+# Мониторинг (HTTPS :9090)
+curl -s https://task.devops-campus.ru:9090/metrics | grep -E '^node_load1|^node_memory_MemAvailable'
+curl -s https://task.devops-campus.ru:9090/actuator/prometheus | grep -E '^process_uptime_seconds|^http_server_requests'
+curl -s https://task.devops-campus.ru:9090/actuator/health
 tail -f /var/log/nginx/monitoring-access.json
-systemctl status node_exporter
+systemctl status node_exporter nginx
+
+# Monitoring-сервер
+docker ps | grep prometheus
+curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool
 ```
 
 ## Типичные проблемы
@@ -218,9 +255,13 @@ systemctl status node_exporter
 | Ошибка | Решение |
 |--------|---------|
 | `Registry ... not found` | Проверьте `docker_image` в `web_servers.yml` — должен совпадать с CI (`crpd2isbgl7k3puo75s1`) |
-| `pull is of type str ... always` | Обновите коллекции: `make galaxy` или `ansible-galaxy collection install -r requirements.yml --force` |
+| `pull is of type str ... always` | Обновите коллекции: `make galaxy` |
 | Образ не найден | Убедитесь, что CI job `docker` в [project-devops-deploy](https://github.com/EvgeniyMsk/project-devops-deploy/actions) прошёл успешно |
-| 401 при pull | Проверьте `DOCKER_OAUTH_TOKEN` — тот же токен, что в GitHub Secrets для registry |
+| 401 при pull | Проверьте `DOCKER_OAUTH_TOKEN` |
+| Certbot 404 на ACME challenge | Проверьте, что DNS указывает на web-сервер; имена хостов в inventory уникальны; Nginx отдаёт `/.well-known/acme-challenge/` |
+| `bind() to 0.0.0.0:9090 failed` | Контейнер `application` занимает порт — выполните `make deploy` (app → `:9091`, nginx → `:9090`) |
+| `127.0.0.1:9090: address already in use` | Nginx уже слушает `:9090` — management-порт приложения должен быть `:9091` |
+| Prometheus target DOWN | Проверьте UFW на web-сервере (порт 9090 для monitoring-сервера) и доступность `https://task.devops-campus.ru:9090/metrics` |
 
 ## Откат
 

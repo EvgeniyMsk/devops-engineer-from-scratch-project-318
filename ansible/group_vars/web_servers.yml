@@ -31,6 +31,7 @@ app_http_port: 8080
 app_management_port: 9090
 app_management_upstream_port: 9091
 app_management_allow_from: "{{ hostvars[groups['monitoring'][0]]['ansible_host'] }}"
+vpn_server_ip: "89.124.73.57"
 nginx_remove_default_vhost: true
 nginx_monitoring_access_log: /var/log/nginx/monitoring-access.json
 nginx_monitoring_error_log: /var/log/nginx/monitoring-error.json

@@ -158,3 +158,16 @@
     - deploy
     - nginx
     - monitoring
+
+- name: Allow Actuator access from VPN server
+  community.general.ufw:
+    rule: allow
+    src: "{{ vpn_server_ip }}"
+    port: "{{ app_management_port }}"
+    proto: tcp
+  when: ansible_os_family == "Debian"
+  tags:
+    - prepare
+    - deploy
+    - nginx
+    - monitoring
