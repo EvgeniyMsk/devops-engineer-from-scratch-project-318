@@ -1,0 +1,21 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: {{ grafana_telegram_contact_point | to_json }}
+    receivers:
+      - uid: telegram-alerts
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          chatid: {{ grafana_telegram_chat_id | to_json }}
+          parse_mode: HTML
+          message: |
+            {% raw %}{{ range .Alerts -}}
+            <b>{{ .Status | toUpper }}</b>: {{ .Labels.alertname }}
+            Service: {{ .Labels.service }} | Severity: {{ .Labels.severity }}
+            {{ .Annotations.summary }}
+            {{ .Annotations.description }}
+            {{ end }}{% endraw %}
+        secureSettings:
+          bottoken: $TELEGRAM_BOT_TOKEN

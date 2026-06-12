@@ -92,6 +92,19 @@
     - certbot
     - monitoring
 
+- name: Deploy Nginx stub_status configuration
+  ansible.builtin.template:
+    src: nginx-stub-status.conf.j2
+    dest: /etc/nginx/conf.d/nginx-stub-status.conf
+    mode: "0644"
+  notify: Reload nginx
+  tags:
+    - prepare
+    - deploy
+    - nginx
+    - certbot
+    - monitoring
+
 - name: Deploy Nginx shared location snippets
   ansible.builtin.template:
     src: nginx-bulletins-locations.conf.j2

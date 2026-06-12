@@ -1,0 +1,17 @@
+# Internal stub_status for nginx-prometheus-exporter (127.0.0.1 only + monitoring allowlist)
+server {
+    listen 127.0.0.1:{{ nginx_stub_status_port }};
+    server_name nginx-stub-status;
+
+    location = {{ nginx_stub_status_path }} {
+        stub_status on;
+        allow 127.0.0.1;
+{% for ip in nginx_stub_status_allowed_ips %}
+{% if ip != '127.0.0.1' %}
+        allow {{ ip }};
+{% endif %}
+{% endfor %}
+        deny all;
+        access_log off;
+    }
+}

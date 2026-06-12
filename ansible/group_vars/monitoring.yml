@@ -26,7 +26,54 @@ prometheus_scrape_jobs:
     scheme: https
     targets:
       - "{{ prometheus_scrape_host }}"
+  - job_name: nginx
+    metrics_path: /nginx/metrics
+    scheme: https
+    targets:
+      - "{{ prometheus_scrape_host }}"
 
-prometheus_firewall_allowed_tcp_ports:
+monitoring_firewall_allowed_tcp_ports:
   - "22"
   - "{{ prometheus_listen_port }}"
+  - "{{ grafana_listen_port }}"
+
+# Grafana
+grafana_public_url: "http://{{ hostvars[groups['monitoring'][0]]['ansible_host'] }}:{{ grafana_listen_port }}"
+grafana_image: "grafana/grafana:latest"
+grafana_listen_address: "0.0.0.0"
+grafana_listen_port: 3000
+grafana_admin_user: admin
+grafana_data_dir: /var/lib/grafana
+grafana_provisioning_dir: /opt/grafana/provisioning
+grafana_dashboards_dir: /opt/grafana/dashboards
+grafana_docker_network: monitoring
+grafana_container_uid: 472
+grafana_container_gid: 472
+grafana_prometheus_url: "http://prometheus:9090"
+grafana_loki_url: "http://loki:3100"
+
+# Loki
+loki_image: "grafana/loki:3.4.2"
+loki_listen_address: "0.0.0.0"
+loki_listen_port: 3100
+loki_config_dir: /opt/loki/config
+loki_data_dir: /var/lib/loki
+loki_docker_network: monitoring
+loki_container_uid: 10001
+loki_container_gid: 10001
+loki_push_allowed_from: "{{ hostvars[groups['web_servers'][0]]['ansible_host'] }}"
+grafana_log_5xx_threshold: 10
+
+# Alerting (Telegram secrets — TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID via env)
+grafana_alert_folder: Bulletins
+grafana_alert_group_name: bulletins-alerts
+grafana_alert_interval: 1m
+grafana_telegram_contact_point: telegram-alerts
+grafana_alert_for_availability: 5m
+grafana_alert_for_http: 5m
+grafana_alert_for_resources: 10m
+grafana_alert_cpu_threshold: 80
+grafana_alert_memory_threshold: 90
+grafana_alert_disk_threshold: 85
+grafana_alert_http_5xx_rate_threshold: 0.05
+grafana_alert_test_rule_paused: true

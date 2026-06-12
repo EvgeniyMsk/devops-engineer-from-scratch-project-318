@@ -1,0 +1,15 @@
+---
+profile: min
+
+exclude_paths:
+  - roles/geerlingguy.docker/
+  - roles/geerlingguy.nginx/
+  - roles/geerlingguy.certbot/
+  - roles/prometheus/meta/
+
+skip_list:
+  - name[missing]
+  - var-naming[no-role-prefix]
+  - no-changed-when
+  - partial-become[task]
+  - yaml[line-length]

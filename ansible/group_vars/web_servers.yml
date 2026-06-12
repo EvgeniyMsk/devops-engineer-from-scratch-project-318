@@ -36,6 +36,8 @@ nginx_remove_default_vhost: true
 nginx_monitoring_access_log: /var/log/nginx/monitoring-access.json
 nginx_monitoring_error_log: /var/log/nginx/monitoring-error.json
 nginx_monitoring_error_log_level: warn
+nginx_app_access_log: /var/log/nginx/bulletins-ssl-access.json
+nginx_app_error_log: /var/log/nginx/bulletins-ssl-error.log
 nginx_vhosts: []
 nginx_proxy_cache_path: "/var/cache/nginx/bulletins levels=1:2 keys_zone=bulletins_cache:32m max_size=256m inactive=7d use_temp_path=off"
 nginx_extra_http_options: |
@@ -69,3 +71,21 @@ certbot_certs:
 node_exporter_version: "1.11.1"
 node_exporter_port: 9100
 node_exporter_listen_address: "127.0.0.1:{{ node_exporter_port }}"
+
+# Nginx stub_status + nginx-prometheus-exporter (nginx_exporter role)
+nginx_stub_status_port: 8082
+nginx_stub_status_path: /nginx_status
+nginx_stub_status_allowed_ips:
+  - "127.0.0.1"
+  - "{{ app_management_allow_from }}"
+  - "{{ vpn_server_ip }}"
+nginx_metrics_path: /nginx/metrics
+nginx_exporter_version: "1.4.2"
+nginx_exporter_port: 9113
+nginx_exporter_listen_address: "127.0.0.1:{{ nginx_exporter_port }}"
+
+# Promtail → Loki (optional LOKI_BASIC_AUTH_* via Vault/CI)
+logging_env: prod
+logging_app: bulletins
+promtail_version: "3.4.2"
+promtail_loki_url: "http://{{ hostvars[groups['monitoring'][0]]['ansible_host'] }}:3100/loki/api/v1/push"

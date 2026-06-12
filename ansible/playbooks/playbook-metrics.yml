@@ -11,7 +11,19 @@
     - role: geerlingguy.docker
       tags:
         - prepare
+        - monitoring
         - prepare_prometheus
+        - prepare_grafana
+        - prepare_loki
     - role: prometheus
       tags:
+        - monitoring
         - prepare_prometheus
+    - role: loki
+      tags:
+        - monitoring
+        - prepare_loki
+    - role: grafana
+      tags:
+        - monitoring
+        - prepare_grafana

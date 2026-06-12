@@ -1,0 +1,105 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        { "expr": "process_uptime_seconds{job=~\"$job\", instance=~\"$instance\"}", "legendFormat": "uptime", "refId": "A" }
+      ],
+      "title": "JVM Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "none" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        { "expr": "up{job=~\"$job\", instance=~\"$instance\"}", "legendFormat": "up", "refId": "A" }
+      ],
+      "title": "Target Up",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 3,
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{job=~\"$job\", instance=~\"$instance\", area=\"heap\"}", "legendFormat": "{{id}}", "refId": "A" }
+      ],
+      "title": "JVM Heap Memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 4,
+      "targets": [
+        { "expr": "hikaricp_connections_active{job=~\"$job\", instance=~\"$instance\"}", "legendFormat": "active", "refId": "A" },
+        { "expr": "hikaricp_connections_idle{job=~\"$job\", instance=~\"$instance\"}", "legendFormat": "idle", "refId": "B" }
+      ],
+      "title": "Database Pool (HikariCP)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 5,
+      "targets": [
+        { "expr": "rate(jvm_gc_pause_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m])", "legendFormat": "{{action}}", "refId": "A" }
+      ],
+      "title": "GC Pauses (rate)",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["bulletins", "application"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": true, "text": "bulletins-app", "value": "bulletins-app" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(process_uptime_seconds, job)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "job",
+        "multi": false,
+        "name": "job",
+        "options": [{ "selected": true, "text": "bulletins-app", "value": "bulletins-app" }],
+        "query": { "query": "label_values(process_uptime_seconds, job)", "refId": "Prometheus-job-Variable-Query" },
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(process_uptime_seconds{job=~\"$job\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "instance",
+        "multi": false,
+        "name": "instance",
+        "options": [{ "selected": true, "text": "All", "value": "$__all" }],
+        "query": { "query": "label_values(process_uptime_seconds{job=~\"$job\"}, instance)", "refId": "Prometheus-instance-Variable-Query" },
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "title": "Application Health",
+  "uid": "application-health",
+  "version": 1
+}

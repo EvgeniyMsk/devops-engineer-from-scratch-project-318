@@ -1,0 +1,22 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: {{ grafana_prometheus_url | to_json }}
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: {{ grafana_loki_url | to_json }}
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields: []

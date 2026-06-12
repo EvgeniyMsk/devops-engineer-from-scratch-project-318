@@ -1,0 +1,177 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{app=\"$app\", env=\"$env\"} | json | message =~ \"(?i).*$user.*\" or remote_addr =~ \".*$user.*\" or username =~ \".*$user.*\" or user =~ \".*$user.*\"",
+          "refId": "A"
+        }
+      ],
+      "title": "Search by user / IP",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({job=\"nginx-access\", app=\"$app\"} | json | status >= 500 [$__interval]))",
+          "legendFormat": "5xx",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Nginx 5xx (count in range)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["max"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        {
+          "expr": "max(max_over_time({job=\"nginx-access\", app=\"$app\"} | json | unwrap request_time [$__interval]))",
+          "legendFormat": "max request_time",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Max request latency (nginx)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({job=\"docker\", service=\"application\", app=\"$app\"} | json | level=\"ERROR\" [$__interval]))",
+          "legendFormat": "errors",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Application ERROR logs",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "sum by (status) (count_over_time({job=\"nginx-access\", app=\"$app\"} | json | __error__=\"\" | status != \"\" [$__interval]))",
+          "legendFormat": "HTTP {{status}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP status codes (nginx access log)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 14 },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.95, {job=\"nginx-access\", app=\"$app\"} | json | unwrap request_time [$__interval]) by (host)",
+          "legendFormat": "p95 {{host}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Nginx latency p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 23 },
+      "id": 7,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{job=\"nginx-access\", app=\"$app\"} | json | status >= 500",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent 5xx requests (nginx)",
+      "type": "logs"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["bulletins", "logs", "loki"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": true, "text": "bulletins", "value": "bulletins" },
+        "hide": 0,
+        "label": "app",
+        "name": "app",
+        "options": [{ "selected": true, "text": "bulletins", "value": "bulletins" }],
+        "query": "bulletins",
+        "type": "custom"
+      },
+      {
+        "current": { "selected": true, "text": "prod", "value": "prod" },
+        "hide": 0,
+        "label": "env",
+        "name": "env",
+        "options": [{ "selected": true, "text": "prod", "value": "prod" }],
+        "query": "prod",
+        "type": "custom"
+      },
+      {
+        "current": { "selected": false, "text": "", "value": "" },
+        "hide": 0,
+        "label": "user / IP",
+        "name": "user",
+        "options": [{ "selected": true, "text": "", "value": "" }],
+        "query": "",
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "Logs Overview",
+  "uid": "logs-overview",
+  "version": 1
+}

@@ -22,7 +22,7 @@
     rule: allow
     port: "{{ item }}"
     proto: tcp
-  loop: "{{ prometheus_firewall_allowed_tcp_ports }}"
+  loop: "{{ monitoring_firewall_allowed_tcp_ports }}"
   tags:
     - prepare_prometheus
     - monitoring_firewall

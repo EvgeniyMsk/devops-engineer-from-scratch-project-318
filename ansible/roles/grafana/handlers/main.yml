@@ -1,0 +1,5 @@
+---
+- name: Restart grafana
+  community.docker.docker_container:
+    name: grafana
+    restart: true

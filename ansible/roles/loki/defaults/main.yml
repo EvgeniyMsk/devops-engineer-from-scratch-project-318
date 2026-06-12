@@ -1,0 +1,8 @@
+loki_image: "grafana/loki:3.4.2"
+loki_listen_address: "0.0.0.0"
+loki_listen_port: 3100
+loki_config_dir: /opt/loki/config
+loki_data_dir: /var/lib/loki
+loki_docker_network: monitoring
+loki_container_uid: 10001
+loki_container_gid: 10001

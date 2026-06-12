@@ -50,6 +50,44 @@
   tags:
     - prepare_prometheus
 
+- name: Validate Prometheus configuration with promtool
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --entrypoint
+      - promtool
+      - -v
+      - "{{ prometheus_config_dir }}:/etc/prometheus:ro"
+      - "{{ prometheus_image }}"
+      - check
+      - config
+      - /etc/prometheus/prometheus.yml
+  changed_when: false
+  tags:
+    - prepare_prometheus
+    - monitoring
+
+- name: Validate Prometheus alert rules with promtool
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --entrypoint
+      - promtool
+      - -v
+      - "{{ prometheus_config_dir }}:/etc/prometheus:ro"
+      - "{{ prometheus_image }}"
+      - check
+      - rules
+      - /etc/prometheus/rules/alerts.yml
+  changed_when: false
+  tags:
+    - prepare_prometheus
+    - monitoring
+
 - name: Start Prometheus container
   community.docker.docker_container:
     name: prometheus

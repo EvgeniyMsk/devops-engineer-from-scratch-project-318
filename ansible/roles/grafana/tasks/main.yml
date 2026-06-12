@@ -1,0 +1,101 @@
+---
+- name: Ensure Grafana directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ grafana_data_dir }}", owner: "{{ grafana_container_uid }}", group: "{{ grafana_container_gid }}", mode: "0755" }
+    - { path: "{{ grafana_provisioning_dir }}/datasources", owner: root, group: root, mode: "0755" }
+    - { path: "{{ grafana_provisioning_dir }}/dashboards", owner: root, group: root, mode: "0755" }
+    - { path: "{{ grafana_provisioning_dir }}/alerting", owner: root, group: root, mode: "0755" }
+    - { path: "{{ grafana_dashboards_dir }}", owner: "{{ grafana_container_uid }}", group: "{{ grafana_container_gid }}", mode: "0755" }
+  tags:
+    - prepare_grafana
+    - monitoring
+
+- name: Deploy Grafana datasource provisioning
+  ansible.builtin.template:
+    src: datasources.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/datasources/datasources.yml"
+    mode: "0644"
+  notify: Restart grafana
+  tags:
+    - prepare_grafana
+    - monitoring
+
+- name: Deploy Grafana dashboard provider
+  ansible.builtin.template:
+    src: dashboard-provider.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/dashboards/dashboard-provider.yml"
+    mode: "0644"
+  notify: Restart grafana
+  tags:
+    - prepare_grafana
+    - monitoring
+
+- name: Deploy Grafana alerting provisioning
+  ansible.builtin.template:
+    src: "alerting/{{ item }}"
+    dest: "{{ grafana_provisioning_dir }}/alerting/{{ item | regex_replace('\\.j2$', '') }}"
+    mode: "0644"
+  loop:
+    - contactpoints.yml.j2
+    - policies.yml.j2
+    - rules.yml.j2
+  notify: Restart grafana
+  tags:
+    - prepare_grafana
+    - monitoring
+
+- name: Deploy Grafana dashboards
+  ansible.builtin.copy:
+    src: "dashboards/{{ item }}"
+    dest: "{{ grafana_dashboards_dir }}/{{ item }}"
+    owner: "{{ grafana_container_uid }}"
+    group: "{{ grafana_container_gid }}"
+    mode: "0644"
+  loop:
+    - system-resources.json
+    - application-health.json
+    - http-codes.json
+    - status-page.json
+    - nginx-metrics.json
+    - logs-overview.json
+  notify: Restart grafana
+  tags:
+    - prepare_grafana
+    - monitoring
+
+- name: Start Grafana container
+  community.docker.docker_container:
+    name: grafana
+    image: "{{ grafana_image }}"
+    pull: true
+    recreate: true
+    restart_policy: unless-stopped
+    user: "{{ grafana_container_uid }}:{{ grafana_container_gid }}"
+    networks:
+      - name: "{{ grafana_docker_network }}"
+    volumes:
+      - "{{ grafana_data_dir }}:/var/lib/grafana"
+      - "{{ grafana_provisioning_dir }}/datasources:/etc/grafana/provisioning/datasources:ro"
+      - "{{ grafana_provisioning_dir }}/dashboards:/etc/grafana/provisioning/dashboards:ro"
+      - "{{ grafana_provisioning_dir }}/alerting:/etc/grafana/provisioning/alerting:ro"
+      - "{{ grafana_dashboards_dir }}:/var/lib/grafana/dashboards:ro"
+    ports:
+      - "{{ grafana_listen_address }}:{{ grafana_listen_port }}:3000"
+    env:
+      GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_PATHS_DATA: /var/lib/grafana
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      TELEGRAM_BOT_TOKEN: "{{ grafana_telegram_bot_token }}"
+  no_log: true
+  tags:
+    - prepare_grafana
+    - monitoring

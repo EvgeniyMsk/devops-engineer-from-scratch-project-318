@@ -1,0 +1,11 @@
+---
+- name: Allow Loki push from web server
+  community.general.ufw:
+    rule: allow
+    src: "{{ loki_push_allowed_from }}"
+    port: "{{ loki_listen_port }}"
+    proto: tcp
+  when: ansible_os_family == "Debian"
+  tags:
+    - prepare_loki
+    - monitoring

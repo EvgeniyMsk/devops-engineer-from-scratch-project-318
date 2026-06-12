@@ -27,3 +27,13 @@
         - deploy
         - nginx
         - certbot
+    - role: nginx_exporter
+      tags:
+        - prepare
+        - monitoring
+        - nginx_exporter
+    - role: promtail
+      tags:
+        - prepare
+        - monitoring
+        - promtail

@@ -19,6 +19,4 @@ prometheus_scrape_jobs:
     scheme: https
     targets:
       - "{{ prometheus_scrape_host }}"
-prometheus_firewall_allowed_tcp_ports:
-  - "22"
-  - "{{ prometheus_listen_port }}"
+prometheus_firewall_allowed_tcp_ports: "{{ monitoring_firewall_allowed_tcp_ports }}"

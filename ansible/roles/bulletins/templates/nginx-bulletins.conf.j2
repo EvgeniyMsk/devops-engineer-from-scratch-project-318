@@ -14,6 +14,11 @@ upstream node_exporter {
     keepalive 4;
 }
 
+upstream nginx_exporter {
+    server 127.0.0.1:{{ nginx_exporter_port }};
+    keepalive 4;
+}
+
 # HTTP: ACME challenge + redirect to HTTPS when certificate is available
 server {
     listen 80;
@@ -68,8 +73,8 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options SAMEORIGIN always;
 
-    access_log /var/log/nginx/bulletins-ssl-access.log;
-    error_log /var/log/nginx/bulletins-ssl-error.log warn;
+    access_log {{ nginx_app_access_log }} access_json;
+    error_log {{ nginx_app_error_log }} warn;
 
     include /etc/nginx/snippets/bulletins-locations.conf;
 }

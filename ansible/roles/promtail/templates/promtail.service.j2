@@ -1,0 +1,17 @@
+[Unit]
+Description=Promtail log collector
+Documentation=https://grafana.com/docs/loki/latest/send-data/promtail/
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+User=promtail
+Group=promtail
+SupplementaryGroups=docker
+Type=simple
+ExecStart={{ promtail_install_dir }}/promtail -config.file={{ promtail_config_dir }}/promtail.yml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

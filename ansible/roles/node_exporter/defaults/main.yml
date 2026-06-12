@@ -14,7 +14,7 @@ node_exporter_textfile_dir: /var/lib/node_exporter/textfile_collector
 # Сеть      — netdev, netstat collectors
 # Процессы  — processes collector
 # Сервисы   — systemd collector (включается через node_exporter_extra_args)
-node_exporter_systemd_units: "nginx.service|docker.service|node_exporter.service|ssh.service|ufw.service|cron.service|rsyslog.service"
+node_exporter_systemd_units: "nginx.service|docker.service|node_exporter.service|nginx_exporter.service|promtail.service|ssh.service|ufw.service|cron.service|rsyslog.service"
 node_exporter_extra_args: >-
   --collector.systemd
   --collector.systemd.unit-include={{ node_exporter_systemd_units }}

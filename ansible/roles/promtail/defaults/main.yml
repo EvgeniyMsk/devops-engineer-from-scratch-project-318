@@ -1,0 +1,14 @@
+promtail_version: "3.4.2"
+promtail_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+promtail_download_url: >-
+  https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-{{ promtail_arch }}.zip
+promtail_install_dir: /usr/local/bin
+promtail_config_dir: /etc/promtail
+promtail_positions_file: /var/lib/promtail/positions.yaml
+promtail_listen_port: 9080
+promtail_listen_address: "127.0.0.1:{{ promtail_listen_port }}"
+logging_env: prod
+logging_app: bulletins
+promtail_docker_containers:
+  - application
+  - database

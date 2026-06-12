@@ -1,0 +1,424 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: {{ grafana_alert_group_name | to_json }}
+    folder: {{ grafana_alert_folder | to_json }}
+    interval: {{ grafana_alert_interval }}
+    rules:
+      - uid: appdown001
+        title: Application target down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: up{job="bulletins-app"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: {{ grafana_alert_for_availability }}
+        dashboardUid: status-page
+        panelId: 1
+        annotations:
+          summary: Приложение bulletins-app недоступно
+          description: Prometheus не получает метрики Actuator дольше {{ grafana_alert_for_availability }}. Проверьте контейнер application.
+        labels:
+          service: bulletins-app
+          severity: critical
+
+      - uid: nodeup0001
+        title: Node exporter missing
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: up{job="node"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: {{ grafana_alert_for_availability }}
+        dashboardUid: status-page
+        panelId: 2
+        annotations:
+          summary: Node Exporter не отдаёт метрики
+          description: Системные метрики отсутствуют дольше {{ grafana_alert_for_availability }}.
+        labels:
+          service: node
+          severity: critical
+
+      - uid: http5xx001
+        title: High HTTP 5xx rate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: sum(rate(http_server_requests_seconds_count{job="bulletins-app", status=~"5.."}[5m]))
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [{{ grafana_alert_http_5xx_rate_threshold }}]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: {{ grafana_alert_for_http }}
+        dashboardUid: status-page
+        panelId: 3
+        annotations:
+          summary: Рост HTTP 5xx на bulletins-app
+          description: Скорость 5xx выше {{ grafana_alert_http_5xx_rate_threshold }} req/s в течение {{ grafana_alert_for_http }}.
+        labels:
+          service: bulletins-app
+          severity: critical
+
+      - uid: highcpu001
+        title: High CPU usage
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: 100 - (avg(rate(node_cpu_seconds_total{job="node", mode="idle"}[5m])) * 100)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [{{ grafana_alert_cpu_threshold }}]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: {{ grafana_alert_for_resources }}
+        dashboardUid: status-page
+        panelId: 4
+        annotations:
+          summary: Высокая загрузка CPU
+          description: CPU выше {{ grafana_alert_cpu_threshold }}% в течение {{ grafana_alert_for_resources }}.
+        labels:
+          service: node
+          severity: warning
+
+      - uid: highmem001
+        title: High memory usage
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: (1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"}) * 100
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [{{ grafana_alert_memory_threshold }}]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: {{ grafana_alert_for_resources }}
+        dashboardUid: status-page
+        panelId: 5
+        annotations:
+          summary: Высокое потребление RAM
+          description: Память выше {{ grafana_alert_memory_threshold }}% в течение {{ grafana_alert_for_resources }}.
+        labels:
+          service: node
+          severity: warning
+
+      - uid: diskfull01
+        title: Disk space low
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: 100 * (1 - node_filesystem_avail_bytes{job="node", mountpoint="/", fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{job="node", mountpoint="/", fstype!~"tmpfs|overlay|squashfs"})
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [{{ grafana_alert_disk_threshold }}]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: {{ grafana_alert_for_resources }}
+        dashboardUid: status-page
+        panelId: 6
+        annotations:
+          summary: Диск почти заполнен
+          description: Заполнение / выше {{ grafana_alert_disk_threshold }}% в течение {{ grafana_alert_for_resources }}.
+        labels:
+          service: node
+          severity: warning
+
+      - uid: testalrt01
+        title: Grafana test alert
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: vector(1)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 0s
+{% if grafana_alert_test_rule_paused | bool %}
+        isPaused: true
+{% endif %}
+        annotations:
+          summary: Тестовый алерт Grafana
+          description: Снимите pause для проверки Telegram или используйте Send test notification на contact point.
+        labels:
+          service: grafana
+          severity: info
+
+      - uid: log5xx001
+        title: Log 5xx spike (Loki)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: loki
+            model:
+              editorMode: code
+              expr: sum(count_over_time({job="nginx-access", app="bulletins"} | json | status >= 500 [5m]))
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [{{ grafana_log_5xx_threshold }}]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: {{ grafana_alert_for_http }}
+        dashboardUid: logs-overview
+        panelId: 7
+        annotations:
+          summary: Всплеск HTTP 5xx в access-log Nginx
+          description: Более {{ grafana_log_5xx_threshold }} записей 5xx за 5 минут (Loki). Смотрите dashboard Logs Overview.
+        labels:
+          service: nginx
+          severity: critical
