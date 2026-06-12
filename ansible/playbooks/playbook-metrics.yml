@@ -1,0 +1,15 @@
+---
+- name: Prepare metrics server
+  hosts: monitoring
+  become: true
+
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/web_servers.yml"
+
+  roles:
+    - role: geerlingguy.docker
+      tags:
+        - prepare
+    - role: prometheus
+      tags:
+        - prepare_prometheus

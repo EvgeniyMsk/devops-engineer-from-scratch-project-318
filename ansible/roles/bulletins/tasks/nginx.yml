@@ -25,11 +25,15 @@
 
 - name: Ensure certbot webroot exists
   ansible.builtin.file:
-    path: "{{ certbot_webroot }}"
+    path: "{{ item }}"
     state: directory
     owner: www-data
     group: www-data
     mode: "0755"
+  loop:
+    - "{{ certbot_webroot }}"
+    - "{{ certbot_webroot }}/.well-known"
+    - "{{ certbot_webroot }}/.well-known/acme-challenge"
   tags:
     - prepare
     - deploy
@@ -114,7 +118,7 @@
     - nginx
     - certbot
 
-- name: Flush handlers before nginx restart
+- name: Flush handlers to reload nginx configuration
   ansible.builtin.meta: flush_handlers
   tags:
     - prepare
@@ -131,13 +135,26 @@
     - nginx
     - certbot
 
-- name: Restart nginx to apply site configuration
+- name: Reload nginx to apply site configuration
   ansible.builtin.systemd:
     name: nginx
-    state: restarted
+    state: reloaded
     enabled: true
+  failed_when: false
+  tags:
+    - prepare
+    - nginx
+    - certbot
+
+- name: Allow Actuator access from monitoring server
+  community.general.ufw:
+    rule: allow
+    src: "{{ app_management_allow_from }}"
+    port: "{{ app_management_port }}"
+    proto: tcp
+  when: ansible_os_family == "Debian"
   tags:
     - prepare
     - deploy
     - nginx
-    - certbot
+    - monitoring

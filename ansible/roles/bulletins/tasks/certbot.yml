@@ -1,4 +1,13 @@
 ---
+- name: Ensure Nginx is running before Certbot
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+  tags:
+    - prepare
+    - deploy
+    - certbot
+
 - name: Configure TLS certificates with Certbot
   ansible.builtin.include_role:
     name: geerlingguy.certbot

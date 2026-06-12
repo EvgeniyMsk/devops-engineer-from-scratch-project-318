@@ -70,6 +70,13 @@
     force_source: true
   tags: deploy
 
+- name: Remove application container before recreate
+  become_user: "{{ docker_user }}"
+  community.docker.docker_container:
+    name: application
+    state: absent
+  tags: deploy
+
 - name: Start Application
   become_user: "{{ docker_user }}"
   community.docker.docker_container:
@@ -84,7 +91,7 @@
       - "{{ app_log_dir }}:/app/logs"
     ports:
       - "127.0.0.1:8080:8080"
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:{{ app_management_upstream_port }}:9090"
     env:
       JAVA_OPTS: "{{ java_opts }}"
       SPRING_DATASOURCE_USERNAME: "{{ spring_datasource_username }}"
@@ -121,3 +128,12 @@
     group: www-data
     recurse: true
   tags: deploy
+
+- name: Start nginx after application port bindings are updated
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
+  tags:
+    - deploy
+    - nginx

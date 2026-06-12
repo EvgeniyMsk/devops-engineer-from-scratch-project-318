@@ -1,3 +1,19 @@
+# Node Exporter — host metrics
+location = /metrics {
+    proxy_pass http://node_exporter/metrics;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+    proxy_buffering off;
+
+    access_log {{ nginx_monitoring_access_log }} monitoring_json;
+    error_log {{ nginx_monitoring_error_log }} {{ nginx_monitoring_error_log_level }};
+}
+
 # Actuator / management endpoints — proxied from Spring Boot management port
 location = /actuator/health {
     proxy_pass http://bulletin_management;

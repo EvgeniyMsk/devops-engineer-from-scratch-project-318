@@ -1,6 +1,6 @@
 ---
 - name: Deploy bulletin board application
-  hosts: main
+  hosts: web_servers
   become: true
 
   vars_files:

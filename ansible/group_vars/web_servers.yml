@@ -29,6 +29,8 @@ nginx_static_root: /var/www/bulletins
 nginx_client_max_body_size: 64m
 app_http_port: 8080
 app_management_port: 9090
+app_management_upstream_port: 9091
+app_management_allow_from: "{{ hostvars[groups['monitoring'][0]]['ansible_host'] }}"
 nginx_remove_default_vhost: true
 nginx_monitoring_access_log: /var/log/nginx/monitoring-access.json
 nginx_monitoring_error_log: /var/log/nginx/monitoring-error.json
@@ -64,4 +66,5 @@ certbot_certs:
 
 # Node Exporter (node_exporter role)
 node_exporter_version: "1.11.1"
-node_exporter_listen_address: "127.0.0.1:9100"
+node_exporter_port: 9100
+node_exporter_listen_address: "127.0.0.1:{{ node_exporter_port }}"

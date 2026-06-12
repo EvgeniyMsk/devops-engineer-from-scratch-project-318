@@ -1,0 +1,8 @@
+prometheus_scrape_target: "{{ certbot_domain | default('task.devops-campus.ru') }}:9090"
+prometheus_image: "prom/prometheus:latest"
+prometheus_config_path: /opt/prometheus.yml
+prometheus_data_dir: /prometheus
+prometheus_listen_address: "0.0.0.0:9090"
+# Official prom/prometheus image runs as nobody (65534)
+prometheus_container_uid: 65534
+prometheus_container_gid: 65534
